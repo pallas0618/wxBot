@@ -2,7 +2,7 @@
 # coding: utf-8
 
 from wxbot import *
-import ConfigParser
+import configparser
 import json
 
 
@@ -14,12 +14,12 @@ class TulingWXBot(WXBot):
         self.robot_switch = True
 
         try:
-            cf = ConfigParser.ConfigParser()
+            cf = configparser.ConfigParser()
             cf.read('conf.ini')
             self.tuling_key = cf.get('main', 'key')
         except Exception:
             pass
-        print 'tuling_key:', self.tuling_key
+        print('tuling_key:'+ self.tuling_key)
 
     def tuling_auto_reply(self, uid, msg):
         if self.tuling_key:
@@ -42,7 +42,7 @@ class TulingWXBot(WXBot):
                 result = respond['text'].replace('<br>', '  ')
                 result = result.replace(u'\xa0', u' ')
 
-            print '    ROBOT:', result
+            print('    ROBOT:'+ result)
             return result
         else:
             return u"知道啦"
@@ -69,6 +69,19 @@ class TulingWXBot(WXBot):
             self.auto_switch(msg)
         elif msg['msg_type_id'] == 4 and msg['content']['type'] == 0:  # text message from contact
             self.send_msg_by_uid(self.tuling_auto_reply(msg['user']['id'], msg['content']['data']), msg['user']['id'])
+            
+            #随机回复妹子图片
+            if random.randint(1, 2) == 1:
+                url = 'http://cct.name/meizi/meizixcx.php'
+                try:
+                    r = self.session.get(url)
+                    data = r.content
+                    fn = 'img_' + msg['user']['id'] + '.jpg'
+                    with open(os.path.join(self.temp_pwd,fn), 'wb') as f:
+                        f.write(data)
+                    self.send_img_msg_by_uid(os.path.join(self.temp_pwd,fn), msg['user']['id']);
+                except Exception as e:
+                    print(u'图片下载错误')
         elif msg['msg_type_id'] == 3 and msg['content']['type'] == 0:  # group text message
             if 'detail' in msg['content']:
                 my_names = self.get_group_member_name(msg['user']['id'], self.my_account['UserName'])
@@ -94,6 +107,14 @@ class TulingWXBot(WXBot):
                     else:
                         reply += u"对不起，只认字，其他杂七杂八的我都不认识，,,Ծ‸Ծ,,"
                     self.send_msg_by_uid(reply, msg['user']['id'])
+        elif msg['msg_type_id'] == 4 and msg['content']['type'] == 3:  # 图
+            self.send_msg_by_uid('嗯……一张图。图里是啥，告诉我嘛，我还看不懂呢', msg['user']['id'])
+        elif msg['msg_type_id'] == 4 and msg['content']['type'] == 4:  # 语音
+            self.send_msg_by_uid('哇啦哇啦~你说了啥我听不懂~告诉我嘛', msg['user']['id'])
+        elif msg['msg_type_id'] == 4 and msg['content']['type'] == 6:  # 表情
+            self.send_msg_by_uid('嗯~？', msg['user']['id'])
+        elif msg['msg_type_id'] == 4 and msg['content']['type'] == 7:  # 链接
+            self.send_msg_by_uid('嗯~一个链接。好好阅读一下', msg['user']['id'])
 
 
 def main():
