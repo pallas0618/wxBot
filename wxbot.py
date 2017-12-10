@@ -17,6 +17,7 @@ import random
 from traceback import format_exc
 from requests.exceptions import ConnectionError, ReadTimeout
 import HTMLParser
+import threading
 
 UNKONWN = 'unkonwn'
 SUCCESS = '200'
@@ -54,7 +55,7 @@ class SafeSession(requests.Session):
                                                         timeout,
                                                         allow_redirects, proxies, hooks, stream, verify, cert, json)
             except Exception as e:
-                print(e.message+ traceback.format_exc())
+                self.outputlog(e.message+ traceback.format_exc())
                 continue
 
         #重试3次以后再加一次，抛出异常
@@ -167,7 +168,7 @@ class WXBot:
         dic_list.append(dic)
 
         while int(dic["Seq"]) != 0:
-            print("[INFO] Geting contacts. Get %s contacts for now" % dic["MemberCount"])
+            self.outputlog("[INFO] Geting contacts. Get %s contacts for now" % dic["MemberCount"])
             url = self.base_uri + '/webwxgetcontact?seq=%s&pass_ticket=%s&skey=%s&r=%s' \
                       % (dic["Seq"], self.pass_ticket, self.skey, int(time.time()))
             r = self.session.post(url, data='{}', timeout=180)
@@ -249,7 +250,7 @@ class WXBot:
             self.cursor += self.batch_count
             cur_batch = map(map_username_batch, cur_batch)
             user_info_list += self.batch_get_contact(cur_batch)
-            print("[INFO] Get batch contacts")
+            self.outputlog("[INFO] Get batch contacts")
 
         self.member_list = user_info_list
         special_users = ['newsapp', 'filehelper', 'weibo', 'qqmail',
@@ -311,8 +312,8 @@ class WXBot:
                 f.write(json.dumps(self.group_members))
             with open(os.path.join(self.temp_pwd,'account_info.json'), 'w') as f:
                 f.write(json.dumps(self.account_info))
-        print('[INFO] Get %d contacts' % len(self.contact_list))
-        print('[INFO] Start to process messages .')
+        self.outputlog('[INFO] Get %d contacts' % len(self.contact_list))
+        self.outputlog('[INFO] Start to process messages .')
         return True
 
 
@@ -328,7 +329,7 @@ class WXBot:
         r = self.session.post(url, data=json.dumps(params))
         r.encoding = 'utf-8'
         dic = json.loads(r.text)
-        #print dic['ContactList']
+        #self.outputlog dic['ContactList']
         return dic['ContactList']
 
 
@@ -565,7 +566,7 @@ class WXBot:
                 msg_content['data'] = pos
                 msg_content['detail'] = data
                 if self.DEBUG:
-                    print('    %s[Location] %s ' % (msg_prefix, pos))
+                    self.outputlog('    %s[Location] %s ' % (msg_prefix, pos))
             else:
                 msg_content['type'] = 0
                 if msg_type_id == 3 or (msg_type_id == 1 and msg['ToUserName'][:2] == '@@'):  # Group text message
@@ -580,28 +581,28 @@ class WXBot:
                     msg_content['data'] = content
                 if self.DEBUG:
                     try:
-                        print('    %s[Text] %s' % (msg_prefix, msg_content['data']))
+                        self.outputlog('    %s[Text] %s' % (msg_prefix, msg_content['data']))
                     except UnicodeEncodeError:
-                        print('    %s[Text] (illegal text).' % msg_prefix)
+                        self.outputlog('    %s[Text] (illegal text).' % msg_prefix)
         elif mtype == 3:
             msg_content['type'] = 3
             msg_content['data'] = self.get_msg_img_url(msg_id)
             msg_content['img'] = self.session.get(msg_content['data']).content
             if self.DEBUG:
                 image = self.get_msg_img(msg_id)
-                print('    %s[Image] %s' % (msg_prefix, image))
+                self.outputlog('    %s[Image] %s' % (msg_prefix, image))
         elif mtype == 34:
             msg_content['type'] = 4
             msg_content['data'] = self.get_voice_url(msg_id)
             msg_content['voice'] = self.session.get(msg_content['data']).content
             if self.DEBUG:
                 voice = self.get_voice(msg_id)
-                print('    %s[Voice] %s' % (msg_prefix, voice))
+                self.outputlog('    %s[Voice] %s' % (msg_prefix, voice))
         elif mtype == 37:
             msg_content['type'] = 37
             msg_content['data'] = msg['RecommendInfo']
             if self.DEBUG:
-                print('    %s[useradd] %s' % (msg_prefix,msg['RecommendInfo']['NickName']))
+                self.outputlog('    %s[useradd] %s' % (msg_prefix,msg['RecommendInfo']['NickName']))
         elif mtype == 42:
             msg_content['type'] = 5
             info = msg['RecommendInfo']
@@ -611,18 +612,18 @@ class WXBot:
                                    'city': info['City'],
                                    'gender': ['unknown', 'male', 'female'][info['Sex']]}
             if self.DEBUG:
-                print('    %s[Recommend]' % msg_prefix)
-                print('    -----------------------------')
-                print('    | NickName: %s' % info['NickName'])
-                print('    | Alias: %s' % info['Alias'])
-                print('    | Local: %s %s' % (info['Province'], info['City']))
-                print('    | Gender: %s' % ['unknown', 'male', 'female'][info['Sex']])
-                print('    -----------------------------')
+                self.outputlog('    %s[Recommend]' % msg_prefix)
+                self.outputlog('    -----------------------------')
+                self.outputlog('    | NickName: %s' % info['NickName'])
+                self.outputlog('    | Alias: %s' % info['Alias'])
+                self.outputlog('    | Local: %s %s' % (info['Province'], info['City']))
+                self.outputlog('    | Gender: %s' % ['unknown', 'male', 'female'][info['Sex']])
+                self.outputlog('    -----------------------------')
         elif mtype == 47:
             msg_content['type'] = 6
             msg_content['data'] = self.search_content('cdnurl', content)
             if self.DEBUG:
-                print('    %s[Animation] %s' % (msg_prefix, msg_content['data']))
+                self.outputlog('    %s[Animation] %s' % (msg_prefix, msg_content['data']))
         elif mtype == 49:
             msg_content['type'] = 7
             if msg['AppMsgType'] == 3:
@@ -641,45 +642,45 @@ class WXBot:
                                    'content': msg.get('Content')  # 有的公众号会发一次性3 4条链接一个大图,如果只url那只能获取第一条,content里面有所有的链接
                                    }
             if self.DEBUG:
-                print('    %s[Share] %s' % (msg_prefix, app_msg_type))
-                print('    --------------------------')
-                print('    | title: %s' % msg['FileName'])
-                print('    | desc: %s' % self.search_content('des', content, 'xml'))
-                print('    | link: %s' % msg['Url'])
-                print('    | from: %s' % self.search_content('appname', content, 'xml'))
-                print('    | content: %s' % (msg.get('content')[:20] if msg.get('content') else "unknown"))
-                print('    --------------------------')
+                self.outputlog('    %s[Share] %s' % (msg_prefix, app_msg_type))
+                self.outputlog('    --------------------------')
+                self.outputlog('    | title: %s' % msg['FileName'])
+                self.outputlog('    | desc: %s' % self.search_content('des', content, 'xml'))
+                self.outputlog('    | link: %s' % msg['Url'])
+                self.outputlog('    | from: %s' % self.search_content('appname', content, 'xml'))
+                self.outputlog('    | content: %s' % (msg.get('content')[:20] if msg.get('content') else "unknown"))
+                self.outputlog('    --------------------------')
 
         elif mtype == 62:
             msg_content['type'] = 8
             msg_content['data'] = content
             if self.DEBUG:
-                print('    %s[Video] Please check on mobiles' % msg_prefix)
+                self.outputlog('    %s[Video] Please check on mobiles' % msg_prefix)
         elif mtype == 53:
             msg_content['type'] = 9
             msg_content['data'] = content
             if self.DEBUG:
-                print('    %s[Video Call]' % msg_prefix)
+                self.outputlog('    %s[Video Call]' % msg_prefix)
         elif mtype == 10002:
             msg_content['type'] = 10
             msg_content['data'] = content
             if self.DEBUG:
-                print('    %s[Redraw]' % msg_prefix)
+                self.outputlog('    %s[Redraw]' % msg_prefix)
         elif mtype == 10000:  # unknown, maybe red packet, or group invite
             msg_content['type'] = 12
             msg_content['data'] = msg['Content']
             if self.DEBUG:
-                print('    [Unknown]')
+                self.outputlog('    [Unknown]')
         elif mtype == 43:
             msg_content['type'] = 13
             msg_content['data'] = self.get_video_url(msg_id)
             if self.DEBUG:
-                print('    %s[video] %s' % (msg_prefix, msg_content['data']))
+                self.outputlog('    %s[video] %s' % (msg_prefix, msg_content['data']))
         else:
             msg_content['type'] = 99
             msg_content['data'] = content
             if self.DEBUG:
-                print('    %s[Unknown]' % msg_prefix)
+                self.outputlog('    %s[Unknown]' % msg_prefix)
         return msg_content
 
     def handle_msg(self, r):
@@ -709,7 +710,7 @@ class WXBot:
                         f.write(msg['StatusNotifyUserName'])
                     with open(os.path.join(self.temp_pwd,'wxid.txt'), 'w') as f:
                         f.write(json.dumps(self.wxid_list))
-                    print("[INFO] Contact list is too big. Now start to fetch member list .")
+                    self.outputlog("[INFO] Contact list is too big. Now start to fetch member list .")
                     #self.get_big_contact()
 
             elif msg['MsgType'] == 37:  # friend request
@@ -718,11 +719,11 @@ class WXBot:
                 # content = msg['Content']
                 # username = content[content.index('fromusername='): content.index('encryptusername')]
                 # username = username[username.index('"') + 1: username.rindex('"')]
-                # print u'[Friend Request]'
-                # print u'       Nickname：' + msg['RecommendInfo']['NickName']
-                # print u'       附加消息：'+msg['RecommendInfo']['Content']
-                # # print u'Ticket：'+msg['RecommendInfo']['Ticket'] # Ticket添加好友时要用
-                # print u'       微信号：'+username #未设置微信号的 腾讯会自动生成一段微信ID 但是无法通过搜索 搜索到此人
+                # self.outputlog u'[Friend Request]'
+                # self.outputlog u'       Nickname：' + msg['RecommendInfo']['NickName']
+                # self.outputlog u'       附加消息：'+msg['RecommendInfo']['Content']
+                # # self.outputlog u'Ticket：'+msg['RecommendInfo']['Ticket'] # Ticket添加好友时要用
+                # self.outputlog u'       微信号：'+username #未设置微信号的 腾讯会自动生成一段微信ID 但是无法通过搜索 搜索到此人
             elif msg['FromUserName'] == self.my_account['UserName']:  # Self
                 msg_type_id = 1
                 user['name'] = 'self'
@@ -749,7 +750,7 @@ class WXBot:
             user['name'] = HTMLParser.HTMLParser().unescape(user['name'])
 
             if self.DEBUG and msg_type_id != 0:
-                print(u'[MSG] %s:' % user['name'])
+                self.outputlog(u'[MSG] %s:' % user['name'])
             content = self.extract_msg_content(msg_type_id, msg)
             message = {'msg_type_id': msg_type_id,
                        'msg_id': msg['MsgId'],
@@ -774,7 +775,7 @@ class WXBot:
             check_time = time.time()
             try:
                 [retcode, selector] = self.sync_check()
-                # print '[DEBUG] sync_check:', retcode, selector
+                # self.outputlog '[DEBUG] sync_check:', retcode, selector
                 if retcode == '1100':  # 从微信客户端上登出
                     break
                 elif retcode == '1101':  # 从其它设备上登了网页微信
@@ -803,17 +804,17 @@ class WXBot:
                     elif selector == '0':  # 无事件
                         pass
                     else:
-                        print('[DEBUG] sync_check:'+ str(retcode)+ str(selector))
+                        self.outputlog('[DEBUG] sync_check:'+ str(retcode)+ str(selector))
                         r = self.sync()
                         if r is not None:
                             self.handle_msg(r)
                 else:
-                    print('[DEBUG] sync_check:'+ str(retcode)+ str(selector))
+                    self.outputlog('[DEBUG] sync_check:'+ str(retcode)+ str(selector))
                     time.sleep(10)
                 self.schedule()
             except:
-                print('[ERROR] Except in proc_msg')
-                print(format_exc())
+                self.outputlog('[ERROR] Except in proc_msg')
+                self.outputlog(format_exc())
             check_time = time.time() - check_time
             if check_time < 0.8:
                 time.sleep(1 - check_time)
@@ -893,7 +894,7 @@ class WXBot:
             return False
         #获取群成员数量并判断邀请方式
         group_num=len(self.group_members[gid])
-        print('[DEBUG] group_name:%s group_num:%s' % (group_name,group_num))
+        self.outputlog('[DEBUG] group_name:%s group_num:%s' % (group_name,group_num))
         #通过群id判断uid是否在群中
         for user in self.group_members[gid]:
             if user['UserName'] == uid:
@@ -1024,7 +1025,7 @@ class WXBot:
 
     def upload_media(self, fpath, is_img=False):
         if not os.path.exists(fpath):
-            print('[ERROR] File not exists.')
+            self.outputlog('[ERROR] File not exists.')
             return None
         url_1 = 'https://file.'+self.base_host+'/cgi-bin/mmwebwx-bin/webwxuploadmedia?f=json'
         url_2 = 'https://file2.'+self.base_host+'/cgi-bin/mmwebwx-bin/webwxuploadmedia?f=json'
@@ -1056,7 +1057,7 @@ class WXBot:
                 # 当file返回值不为0时则为上传失败，尝试第二服务器上传
                 r = self.session.post(url_2, files=files)
             if json.loads(r.text)['BaseResponse']['Ret'] != 0:
-                print('[ERROR] Upload media failure.')
+                self.outputlog('[ERROR] Upload media failure.')
                 return None
             mid = json.loads(r.text)['MediaId']
             return mid
@@ -1145,7 +1146,7 @@ class WXBot:
                     result = True
                     for line in f.readlines():
                         line = line.replace('\n', '')
-                        print('-> ' + name + ': ' + line)
+                        self.outputlog('-> ' + name + ': ' + line)
                         if self.send_msg_by_uid(line, uid):
                             pass
                         else:
@@ -1160,7 +1161,7 @@ class WXBot:
                     return False
         else:
             if self.DEBUG:
-                print('[ERROR] This user does not exist .')
+                self.outputlog('[ERROR] This user does not exist .')
             return True
 
     @staticmethod
@@ -1179,37 +1180,59 @@ class WXBot:
         try:
             self.get_uuid()
             self.gen_qr_code(os.path.join(self.temp_pwd,'wxqr.png'))
-            print('[INFO] Please use WeChat to scan the QR code .')
+            self.outputlog('[INFO] Please use WeChat to scan the QR code .')
 
             result = self.wait4login()
             if result != SUCCESS:
-                print('[ERROR] Web WeChat login failed. failed code=%s' % (result,))
+                self.outputlog('[ERROR] Web WeChat login failed. failed code=%s' % (result,))
                 self.status = 'loginout'
                 return
 
             if self.login():
-                print('[INFO] Web WeChat login succeed .')
+                self.outputlog('[INFO] Web WeChat login succeed .')
             else:
-                print('[ERROR] Web WeChat login failed .')
+                self.outputlog('[ERROR] Web WeChat login failed .')
                 self.status = 'loginout'
                 return
 
             if self.init():
-                print('[INFO] Web WeChat init succeed .')
+                self.outputlog('[INFO] Web WeChat init succeed .')
             else:
-                print('[INFO] Web WeChat init failed')
+                self.outputlog('[INFO] Web WeChat init failed')
                 self.status = 'loginout'
                 return
             self.status_notify()
             if self.get_contact():
-                print('[INFO] Get %d contacts' % len(self.contact_list))
-                print('[INFO] Start to process messages .')
-            self.proc_msg()
+                self.outputlog('[INFO] Get %d contacts' % len(self.contact_list))
+                self.outputlog('[INFO] Start to process messages .')
+            #self.proc_msg()
+            
+            listenProcess = threading.Thread(target=self.proc_msg)
+            listenProcess.start()
+            self.acceptinput()
+            
             self.status = 'loginout'
         except Exception as e:
-            print('[ERROR] Web WeChat run failed --> %s'%(e))
+            self.outputlog('[ERROR] Web WeChat run failed --> %s'%(e))
             self.status = 'loginout'
 
+    def acceptinput(self):
+        while True:
+            text = input('')
+            if text == 'quit':
+                #listenProcess.terminate()	
+                self.outputlog('exit')
+                #stopflag = '1'
+                os._exit(0)
+            elif text[:2] == '->':
+                [name, word] = text[2:].split(':')
+                #if name == 'all':
+                #    self.sendMsgToAll(word)
+                #else:
+                if self.send_msg(name, word):
+                    self.outputlog(u'向'+name+u'发送消息成功')
+                else:
+                    self.outputlog(u'向'+name+u'发送消息失败')
 
     def get_uuid(self):
         url = 'https://login.weixin.qq.com/jslogin'
@@ -1239,7 +1262,7 @@ class WXBot:
             # img = Image.open(qr_file_path)
             # img.show()
         elif self.conf['qr'] == 'tty':
-            print(qr.terminal(quiet_zone=1))
+            self.outputlog(qr.terminal(quiet_zone=1))
 
     def do_request(self, url):
         r = self.session.get(url)
@@ -1271,7 +1294,7 @@ class WXBot:
             url = LOGIN_TEMPLATE % (tip, self.uuid, int(time.time()))
             code, data = self.do_request(url)
             if code == SCANED:
-                print('[INFO] Please confirm to login .')
+                self.outputlog('[INFO] Please confirm to login .')
                 tip = 0
             elif code == SUCCESS:  # 确认登录成功
                 param = re.search(r'window.redirect_uri="(\S+?)";', data)
@@ -1282,13 +1305,13 @@ class WXBot:
                 self.base_host = temp_host[:temp_host.find("/")]
                 return code
             elif code == TIMEOUT:
-                print('[ERROR] WeChat login timeout. retry in %s secs later...' % (try_later_secs,))
+                self.outputlog('[ERROR] WeChat login timeout. retry in %s secs later...' % (try_later_secs,))
 
                 tip = 1  # 重置
                 retry_time -= 1
                 time.sleep(try_later_secs)
             else:
-                print ('[ERROR] WeChat login exception return_code=%s. retry in %s secs later...' %
+                self.outputlog ('[ERROR] WeChat login exception return_code=%s. retry in %s secs later...' %
                        (code, try_later_secs))
                 tip = 1
                 retry_time -= 1
@@ -1298,7 +1321,7 @@ class WXBot:
 
     def login(self):
         if len(self.redirect_uri) < 4:
-            print('[ERROR] Login failed due to network problem, please try again.')
+            self.outputlog('[ERROR] Login failed due to network problem, please try again.')
             return False
         r = self.session.get(self.redirect_uri)
         r.encoding = 'utf-8'
@@ -1509,3 +1532,6 @@ class WXBot:
             return dic['BaseResponse']['ErrMsg']
         except:
             return None
+
+    def outputlog(self,str):
+        return None
