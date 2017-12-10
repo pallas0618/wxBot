@@ -168,7 +168,7 @@ class WXBot:
         dic_list.append(dic)
 
         while int(dic["Seq"]) != 0:
-            self.outputlog("[INFO] Geting contacts. Get %s contacts for now" % dic["MemberCount"])
+            self.outputlog("[INFO] 正在获取联系人名单...已获取 %s 名联系人" % dic["MemberCount"])
             url = self.base_uri + '/webwxgetcontact?seq=%s&pass_ticket=%s&skey=%s&r=%s' \
                       % (dic["Seq"], self.pass_ticket, self.skey, int(time.time()))
             r = self.session.post(url, data='{}', timeout=180)
@@ -250,7 +250,7 @@ class WXBot:
             self.cursor += self.batch_count
             cur_batch = map(map_username_batch, cur_batch)
             user_info_list += self.batch_get_contact(cur_batch)
-            self.outputlog("[INFO] Get batch contacts")
+            self.outputlog("[INFO] 批量获取联系人信息")
 
         self.member_list = user_info_list
         special_users = ['newsapp', 'filehelper', 'weibo', 'qqmail',
@@ -312,8 +312,8 @@ class WXBot:
                 f.write(json.dumps(self.group_members))
             with open(os.path.join(self.temp_pwd,'account_info.json'), 'w') as f:
                 f.write(json.dumps(self.account_info))
-        self.outputlog('[INFO] Get %d contacts' % len(self.contact_list))
-        self.outputlog('[INFO] Start to process messages .')
+        self.outputlog('[INFO] 获取到 %d 名联系人信息' % len(self.contact_list))
+        self.outputlog('[INFO] 开始处理消息...')
         return True
 
 
@@ -606,11 +606,11 @@ class WXBot:
         elif mtype == 42:
             msg_content['type'] = 5
             info = msg['RecommendInfo']
-            msg_content['data'] = {'nickname': info['NickName'],
-                                   'alias': info['Alias'],
-                                   'province': info['Province'],
-                                   'city': info['City'],
-                                   'gender': ['unknown', 'male', 'female'][info['Sex']]}
+            msg_content['data'] = {'昵称': info['NickName'],
+                                   '备注': info['Alias'],
+                                   '省份': info['Province'],
+                                   '城市': info['City'],
+                                   '性别': ['未知', '男', '女'][info['Sex']]}
             if self.DEBUG:
                 self.outputlog('    %s[Recommend]' % msg_prefix)
                 self.outputlog('    -----------------------------')
@@ -634,12 +634,12 @@ class WXBot:
                 app_msg_type = 'weibo'
             else:
                 app_msg_type = 'unknown'
-            msg_content['data'] = {'type': app_msg_type,
-                                   'title': msg['FileName'],
-                                   'desc': self.search_content('des', content, 'xml'),
-                                   'url': msg['Url'],
-                                   'from': self.search_content('appname', content, 'xml'),
-                                   'content': msg.get('Content')  # 有的公众号会发一次性3 4条链接一个大图,如果只url那只能获取第一条,content里面有所有的链接
+            msg_content['data'] = {'类型': app_msg_type,
+                                   '标题': msg['FileName'],
+                                   '详情': self.search_content('des', content, 'xml'),
+                                   '链接': msg['Url'],
+                                   '公众号': self.search_content('appname', content, 'xml'),
+                                   '内容': msg.get('Content')  # 有的公众号会发一次性3 4条链接一个大图,如果只url那只能获取第一条,content里面有所有的链接
                                    }
             if self.DEBUG:
                 self.outputlog('    %s[Share] %s' % (msg_prefix, app_msg_type))
@@ -655,7 +655,7 @@ class WXBot:
             msg_content['type'] = 8
             msg_content['data'] = content
             if self.DEBUG:
-                self.outputlog('    %s[Video] Please check on mobiles' % msg_prefix)
+                self.outputlog('    %s[Video] 收到视频请求，请在手机端处理' % msg_prefix)
         elif mtype == 53:
             msg_content['type'] = 9
             msg_content['data'] = content
@@ -710,7 +710,7 @@ class WXBot:
                         f.write(msg['StatusNotifyUserName'])
                     with open(os.path.join(self.temp_pwd,'wxid.txt'), 'w') as f:
                         f.write(json.dumps(self.wxid_list))
-                    self.outputlog("[INFO] Contact list is too big. Now start to fetch member list .")
+                    self.outputlog("[INFO] 联系人列表过长，开始获取...")
                     #self.get_big_contact()
 
             elif msg['MsgType'] == 37:  # friend request
@@ -804,16 +804,16 @@ class WXBot:
                     elif selector == '0':  # 无事件
                         pass
                     else:
-                        self.outputlog('[DEBUG] sync_check:'+ str(retcode)+ str(selector))
+                        self.outputlog('[DEBUG] 签名验证:'+ str(retcode)+ str(selector))
                         r = self.sync()
                         if r is not None:
                             self.handle_msg(r)
                 else:
-                    self.outputlog('[DEBUG] sync_check:'+ str(retcode)+ str(selector))
+                    self.outputlog('[DEBUG] 签名验证:'+ str(retcode)+ str(selector))
                     time.sleep(10)
                 self.schedule()
             except:
-                self.outputlog('[ERROR] Except in proc_msg')
+                self.outputlog('[ERROR] 消息处理异常')
                 self.outputlog(format_exc())
             check_time = time.time() - check_time
             if check_time < 0.8:
@@ -894,7 +894,7 @@ class WXBot:
             return False
         #获取群成员数量并判断邀请方式
         group_num=len(self.group_members[gid])
-        self.outputlog('[DEBUG] group_name:%s group_num:%s' % (group_name,group_num))
+        self.outputlog('[DEBUG] 群名：:%s 成员数量:%s' % (group_name,group_num))
         #通过群id判断uid是否在群中
         for user in self.group_members[gid]:
             if user['UserName'] == uid:
@@ -1025,7 +1025,7 @@ class WXBot:
 
     def upload_media(self, fpath, is_img=False):
         if not os.path.exists(fpath):
-            self.outputlog('[ERROR] File not exists.')
+            self.outputlog('[ERROR] 文件不存在.')
             return None
         url_1 = 'https://file.'+self.base_host+'/cgi-bin/mmwebwx-bin/webwxuploadmedia?f=json'
         url_2 = 'https://file2.'+self.base_host+'/cgi-bin/mmwebwx-bin/webwxuploadmedia?f=json'
@@ -1057,7 +1057,7 @@ class WXBot:
                 # 当file返回值不为0时则为上传失败，尝试第二服务器上传
                 r = self.session.post(url_2, files=files)
             if json.loads(r.text)['BaseResponse']['Ret'] != 0:
-                self.outputlog('[ERROR] Upload media failure.')
+                self.outputlog('[ERROR] 上传媒体文件失败')
                 return None
             mid = json.loads(r.text)['MediaId']
             return mid
@@ -1161,7 +1161,7 @@ class WXBot:
                     return False
         else:
             if self.DEBUG:
-                self.outputlog('[ERROR] This user does not exist .')
+                self.outputlog('[ERROR] 用户不存在')
             return True
 
     @staticmethod
@@ -1180,31 +1180,31 @@ class WXBot:
         try:
             self.get_uuid()
             self.gen_qr_code(os.path.join(self.temp_pwd,'wxqr.png'))
-            self.outputlog('[INFO] Please use WeChat to scan the QR code .')
+            self.outputlog('[INFO] 请打开手机端微信扫描二维码...')
 
             result = self.wait4login()
             if result != SUCCESS:
-                self.outputlog('[ERROR] Web WeChat login failed. failed code=%s' % (result,))
+                self.outputlog('[ERROR] 登录失败，错误码：%s' % (result,))
                 self.status = 'loginout'
                 return
 
             if self.login():
-                self.outputlog('[INFO] Web WeChat login succeed .')
+                self.outputlog('[INFO] 登录成功...')
             else:
-                self.outputlog('[ERROR] Web WeChat login failed .')
+                self.outputlog('[ERROR] 登录失败...')
                 self.status = 'loginout'
                 return
 
             if self.init():
-                self.outputlog('[INFO] Web WeChat init succeed .')
+                self.outputlog('[INFO] 初始化成功...')
             else:
-                self.outputlog('[INFO] Web WeChat init failed')
+                self.outputlog('[INFO] 初始化失败...')
                 self.status = 'loginout'
                 return
             self.status_notify()
             if self.get_contact():
-                self.outputlog('[INFO] Get %d contacts' % len(self.contact_list))
-                self.outputlog('[INFO] Start to process messages .')
+                self.outputlog('[INFO] 获取 %d 名联系人' % len(self.contact_list))
+                self.outputlog('[INFO] 开始处理消息...')
             #self.proc_msg()
             
             listenProcess = threading.Thread(target=self.proc_msg)
@@ -1213,7 +1213,7 @@ class WXBot:
             
             self.status = 'loginout'
         except Exception as e:
-            self.outputlog('[ERROR] Web WeChat run failed --> %s'%(e))
+            self.outputlog('[ERROR] 程序打开失败 --> %s'%(e))
             self.status = 'loginout'
 
     def acceptinput(self):
@@ -1221,7 +1221,7 @@ class WXBot:
             text = input('')
             if text == 'quit':
                 #listenProcess.terminate()	
-                self.outputlog('exit')
+                self.outputlog('退出程序')
                 #stopflag = '1'
                 os._exit(0)
             elif text[:2] == '->':
@@ -1294,7 +1294,7 @@ class WXBot:
             url = LOGIN_TEMPLATE % (tip, self.uuid, int(time.time()))
             code, data = self.do_request(url)
             if code == SCANED:
-                self.outputlog('[INFO] Please confirm to login .')
+                self.outputlog('[INFO] 请在手机端确认登录...')
                 tip = 0
             elif code == SUCCESS:  # 确认登录成功
                 param = re.search(r'window.redirect_uri="(\S+?)";', data)
@@ -1305,13 +1305,13 @@ class WXBot:
                 self.base_host = temp_host[:temp_host.find("/")]
                 return code
             elif code == TIMEOUT:
-                self.outputlog('[ERROR] WeChat login timeout. retry in %s secs later...' % (try_later_secs,))
+                self.outputlog('[ERROR] 登录超时， %s 秒后重试...' % (try_later_secs,))
 
                 tip = 1  # 重置
                 retry_time -= 1
                 time.sleep(try_later_secs)
             else:
-                self.outputlog ('[ERROR] WeChat login exception return_code=%s. retry in %s secs later...' %
+                self.outputlog ('[ERROR] 登录失败，错误码：%s。 %s 秒后重试...' %
                        (code, try_later_secs))
                 tip = 1
                 retry_time -= 1
@@ -1321,7 +1321,7 @@ class WXBot:
 
     def login(self):
         if len(self.redirect_uri) < 4:
-            self.outputlog('[ERROR] Login failed due to network problem, please try again.')
+            self.outputlog('[ERROR] 由于网络原因，登录失败，请重试...')
             return False
         r = self.session.get(self.redirect_uri)
         r.encoding = 'utf-8'
