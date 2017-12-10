@@ -9,30 +9,85 @@ import threading
 from PIL import Image
 from PIL import ImageTk
 
+#二维码
 qrw=300
 qrh=300
+
+#消息列表
 lsw=300
 lsh=100
+
+#发送消息控件
+tlw=50
+tew=50
+mlw=50
+mew=130
+sdh=20
+
+#按钮
+btw=50
+
 
 class Application(Frame):
     def __init__(self, master=None):
         Frame.__init__(self, master)
-        self.pack()
+        self.place()
+        
+    def setbot(self,bot):
+        self.bot = bot
+        self.master.iconbitmap('icon.ico')
+        menubar = Menu(self.master)
+        menu1 = Menu(menubar, tearoff=0)
+        menu1.add_command(label='发送', command=self.bot.guisend)
+        menu1.add_command(label='清屏', command=self.clearlist)
+        menu1.add_command(label='退出', command=self.quit)
+        menubar.add_cascade(label='操作',menu=menu1)
+        menubar.add_command(label='关于', command=self.about)
+        self.master['menu']=menubar
         self.createWidgets()
-        #self.iconbitmap('spider_128px_1169260_easyicon.net.ico')
     
     def createWidgets(self):
-        #self.helloLabel = Label(self, text='Hello, world!')
-        #self.helloLabel.pack()
-        #self.quitButton = Button(self, text='Quit', command=self.quit)
-        #self.quitButton.pack()
+        self.tolabel = Label(self.master, text='发送给')
+        self.tolabel.place(x=0, y=qrh+sdh, width=tlw, height=sdh)
+        
+        self.tostr = StringVar()
+        self.toentry = Entry(self.master, textvariable=self.tostr)
+        self.toentry.place(x=tlw, y=qrh+sdh, width=tew, height=sdh)
+        
+        self.msglabel = Label(self.master, text='内容：')
+        self.msglabel.place(x=tlw+tew, y=qrh+sdh, width=mlw, height=sdh)
+        
+        self.msgstr = StringVar()
+        self.msgentry = Entry(self.master, textvariable=self.msgstr)
+        self.msgentry.place(x=tlw+tew+mlw, y=qrh+sdh, width=mew, height=sdh)
+        
+        #发送按钮放在另一边
+        self.btsend = Button(self.master, text='发送', command=self.bot.guisend)
+        self.btsend.place(x=btw,y=qrh+sdh*2.5, width=btw, height=sdh*1.5 ) 
+        self.btsend = Button(self.master, text='清屏', command=self.clearlist)
+        self.btsend.place(x=qrw/2-btw/2,y=qrh+sdh*2.5, width=btw, height=sdh*1.5 ) 
+        self.btsend = Button(self.master, text='退出', command=self.quit)
+        self.btsend.place(x=(qrw/2-btw)*2,y=qrh+sdh*2.5, width=btw, height=sdh*1.5 ) 
+        
         self.loglist = Listbox(self.master,selectmode = BROWSE, bg='#000000', fg='#00ff00')
         self.loglist.place(x=0,y=qrh, width=lsw, height=lsh ) 
+        
         #self.scrolly=Scrollbar(self.master)
         #self.scrolly.place(x=lsw, y=qrh, width=(qrw-lsw), height=lsh)
         #self.scrolly.config(command=self.loglist.yview)
         #self.scrolly.set(0,0.5)
-        #relwidth=1
+        
+    def clearlist(self):
+        self.loglist.delete(0, END)
+        
+    def about(self):
+        self.bot.outputlog('======================================')
+        self.bot.outputlog('开发者：一石流Haber')
+        self.bot.outputlog('联系方式：xdx3000(微信)')
+        self.bot.outputlog('未经授权，严禁商用，个人研究请随意使用')
+        self.bot.outputlog('======================================')
+        for i in range(1,6):
+            self.loglist.itemconfig(self.loglist.size()-i,fg="#00ffff")  
 
 class TulingWXBot(WXBot):
     def __init__(self):
@@ -70,7 +125,7 @@ class TulingWXBot(WXBot):
                 result = respond['text'].replace('<br>', '  ')
                 result = result.replace(u'\xa0', u' ')
 
-            self.outputlog('    ROBOT:'+ result)
+            self.outputlog('    [AI回复]:'+ result)
             return result
         else:
             return u"知道啦"
@@ -95,11 +150,11 @@ class TulingWXBot(WXBot):
             return
         if msg['msg_type_id'] == 1 and msg['content']['type'] == 0:  # reply to self
             self.auto_switch(msg)
-        elif msg['msg_type_id'] == 4 and msg['content']['type'] == 0:  # text message from contact
+        elif msg['msg_type_id'] == 4 and msg['content']['type'] == 0:  # text message from contact or 地址
             self.send_msg_by_uid(self.tuling_auto_reply(msg['user']['id'], msg['content']['data']), msg['user']['id'])
-            self.app.master.title(msg['user']['id'])
+            #self.app.master.title(msg['user']['id'])
             #随机回复妹子图片
-            if random.randint(1, 2) == 1:
+            if random.randint(1, 2) == 0:
                 url = 'http://cct.name/meizi/meizixcx.php'
                 try:
                     r = self.session.get(url)
@@ -138,11 +193,19 @@ class TulingWXBot(WXBot):
         elif msg['msg_type_id'] == 4 and msg['content']['type'] == 3:  # 图
             self.send_msg_by_uid('嗯……一张图。图里是啥，告诉我嘛，我还看不懂呢', msg['user']['id'])
         elif msg['msg_type_id'] == 4 and msg['content']['type'] == 4:  # 语音
-            self.send_msg_by_uid('哇啦哇啦~你说了啥我听不懂~告诉我嘛', msg['user']['id'])
+            self.send_msg_by_uid('哎呀我听不懂语音啦，打字好不好嘛', msg['user']['id'])
+        elif msg['msg_type_id'] == 4 and msg['content']['type'] == 5:  # 名片
+            self.send_msg_by_uid('这个人是谁啊~我要认识ta吗？', msg['user']['id'])
         elif msg['msg_type_id'] == 4 and msg['content']['type'] == 6:  # 表情
-            self.send_msg_by_uid('嗯~？', msg['user']['id'])
+            self.send_msg_by_uid('你这个表情包大王', msg['user']['id'])
         elif msg['msg_type_id'] == 4 and msg['content']['type'] == 7:  # 链接
             self.send_msg_by_uid('嗯~一个链接。好好阅读一下', msg['user']['id'])
+        elif msg['msg_type_id'] == 4 and msg['content']['type'] == 12:  # 红包
+            self.send_msg_by_uid('哇~红包！谢谢土豪~', msg['user']['id'])
+        elif msg['content']['type'] == 11:  # 登录？
+            pass
+        else:
+            self.outputlog('收到未知消息，类型：' + str(msg['content']['type']))
     
     def gen_qr_code(self, qr_file_path):
         string = 'https://login.weixin.qq.com/l/' + self.uuid
@@ -171,11 +234,19 @@ class TulingWXBot(WXBot):
     
     def guiwindow(self):
         self.app = Application()
-        self.app.master.title('Xdx3000`s Weixin Bot')
-        self.app.master.geometry(str(qrw)+'x'+str(qrh+lsh))#+500+200')        
+        self.app.setbot(self)
+        self.app.master.title('微信自动回复机器人 By Xdx3000')
+        self.app.master.geometry(str(qrw)+'x'+str(qrh+lsh+20))#+500+200')        
         self.app.mainloop()
         os._exit(0)
-    
+
+    def guisend(self):
+        to = self.app.tostr.get()
+        msg= self.app.msgstr.get()
+        self.outputlog('向 ['+to+'] 发送消息：'+msg)
+        self.send_msg(to,msg)
+        self.app.msgstr.set('')
+        
     def run(self):
         windowProcess = threading.Thread(target=self.guiwindow)
         windowProcess.start()
@@ -187,8 +258,8 @@ class TulingWXBot(WXBot):
 
     def proc_msg(self):
         self.img.place_forget()
-        self.app.loglist.place(y=0, height=qrh+lsh)
-        #self.app.scrolly.place(y=0, height=qrh+lsh)
+        self.app.loglist.place(y=0, height=qrh)#+lsh
+        
         WXBot.proc_msg(self)
 
 def main():
