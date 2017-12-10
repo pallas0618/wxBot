@@ -47,6 +47,7 @@ Web微信协议参考资料：
 ## 1 环境与依赖
 
 此版本只能运行于Python 2环境 。
+
 【目前此版本运行于Python3.6.3  ————xdx3000】
 
 **wxBot** 用到了Python **requests** , **pypng** , **Pillow** 以及 **pyqrcode** 库。

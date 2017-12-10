@@ -4,7 +4,35 @@
 from wxbot import *
 import configparser
 import json
+from tkinter import *
+import threading
+from PIL import Image
+from PIL import ImageTk
 
+qrw=300
+qrh=300
+lsw=300
+lsh=100
+
+class Application(Frame):
+    def __init__(self, master=None):
+        Frame.__init__(self, master)
+        self.pack()
+        self.createWidgets()
+        #self.iconbitmap('spider_128px_1169260_easyicon.net.ico')
+    
+    def createWidgets(self):
+        #self.helloLabel = Label(self, text='Hello, world!')
+        #self.helloLabel.pack()
+        #self.quitButton = Button(self, text='Quit', command=self.quit)
+        #self.quitButton.pack()
+        self.loglist = Listbox(self.master,selectmode = BROWSE, bg='#000000', fg='#00ff00')
+        self.loglist.place(x=0,y=qrh, width=lsw, height=lsh ) 
+        #self.scrolly=Scrollbar(self.master)
+        #self.scrolly.place(x=lsw, y=qrh, width=(qrw-lsw), height=lsh)
+        #self.scrolly.config(command=self.loglist.yview)
+        #self.scrolly.set(0,0.5)
+        #relwidth=1
 
 class TulingWXBot(WXBot):
     def __init__(self):
@@ -19,7 +47,7 @@ class TulingWXBot(WXBot):
             self.tuling_key = cf.get('main', 'key')
         except Exception:
             pass
-        print('tuling_key:'+ self.tuling_key)
+        #print('tuling_key:'+ self.tuling_key)
 
     def tuling_auto_reply(self, uid, msg):
         if self.tuling_key:
@@ -42,7 +70,7 @@ class TulingWXBot(WXBot):
                 result = respond['text'].replace('<br>', '  ')
                 result = result.replace(u'\xa0', u' ')
 
-            print('    ROBOT:'+ result)
+            self.outputlog('    ROBOT:'+ result)
             return result
         else:
             return u"知道啦"
@@ -69,7 +97,7 @@ class TulingWXBot(WXBot):
             self.auto_switch(msg)
         elif msg['msg_type_id'] == 4 and msg['content']['type'] == 0:  # text message from contact
             self.send_msg_by_uid(self.tuling_auto_reply(msg['user']['id'], msg['content']['data']), msg['user']['id'])
-            
+            self.app.master.title(msg['user']['id'])
             #随机回复妹子图片
             if random.randint(1, 2) == 1:
                 url = 'http://cct.name/meizi/meizixcx.php'
@@ -81,7 +109,7 @@ class TulingWXBot(WXBot):
                         f.write(data)
                     self.send_img_msg_by_uid(os.path.join(self.temp_pwd,fn), msg['user']['id']);
                 except Exception as e:
-                    print(u'图片下载错误')
+                    self.outputlog(u'图片下载错误')
         elif msg['msg_type_id'] == 3 and msg['content']['type'] == 0:  # group text message
             if 'detail' in msg['content']:
                 my_names = self.get_group_member_name(msg['user']['id'], self.my_account['UserName'])
@@ -115,15 +143,60 @@ class TulingWXBot(WXBot):
             self.send_msg_by_uid('嗯~？', msg['user']['id'])
         elif msg['msg_type_id'] == 4 and msg['content']['type'] == 7:  # 链接
             self.send_msg_by_uid('嗯~一个链接。好好阅读一下', msg['user']['id'])
+    
+    def gen_qr_code(self, qr_file_path):
+        string = 'https://login.weixin.qq.com/l/' + self.uuid
+        qr = pyqrcode.create(string)
+        qr.png(qr_file_path, scale=8)
+        self.loadqrcode(qr_file_path)
+        
+    def loadqrcode(self,url):
+        load = Image.open(url)
+        w, h = load.size
+        load_resized = self.resize(w, h, qrw, qrh, load)
+        render= ImageTk.PhotoImage(load_resized)    
+        self.img = Label(self.app.master,image=render, width=qrw, height=qrh)  
+        self.img.image = render  
+        self.img.place(x=0,y=0) 
+        
+    def resize(self, w, h, w_box, h_box, pil_image):  
+        f1 = 1.0*w_box/w # 1.0 forces float division in Python2  
+        f2 = 1.0*h_box/h  
+        factor = min([f1, f2])  
+        #self.outputlog(f1, f2, factor) # test  
+        # use best down-sizing filter  
+        width = int(w*factor)  
+        height = int(h*factor)  
+        return pil_image.resize((width, height), Image.ANTIALIAS) 
+    
+    def guiwindow(self):
+        self.app = Application()
+        self.app.master.title('Xdx3000`s Weixin Bot')
+        self.app.master.geometry(str(qrw)+'x'+str(qrh+lsh))#+500+200')        
+        self.app.mainloop()
+        os._exit(0)
+    
+    def run(self):
+        windowProcess = threading.Thread(target=self.guiwindow)
+        windowProcess.start()
+        WXBot.run(self)
 
+    def outputlog(self,str):
+        self.app.loglist.insert(END,str)
+        self.app.loglist.see(END)
+
+    def proc_msg(self):
+        self.img.place_forget()
+        self.app.loglist.place(y=0, height=qrh+lsh)
+        #self.app.scrolly.place(y=0, height=qrh+lsh)
+        WXBot.proc_msg(self)
 
 def main():
     bot = TulingWXBot()
     bot.DEBUG = True
     bot.conf['qr'] = 'png'
-
+    
     bot.run()
-
 
 if __name__ == '__main__':
     main()
