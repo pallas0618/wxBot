@@ -2,7 +2,11 @@
 # coding: utf-8
 
 from wxbot import *
-import configparser
+import sys
+try:#python2
+    import ConfigParser
+except ImportError:#python3
+    import configparser
 import json
 from tkinter import *
 import threading
@@ -97,7 +101,10 @@ class TulingWXBot(WXBot):
         self.robot_switch = True
 
         try:
-            cf = configparser.ConfigParser()
+            if(sys.version_info[0]==3):
+                cf = configparser.ConfigParser()
+            else:
+                cf = ConfigParser.ConfigParser()
             cf.read('conf.ini')
             self.tuling_key = cf.get('main', 'key')
         except Exception:
@@ -203,6 +210,8 @@ class TulingWXBot(WXBot):
         elif msg['msg_type_id'] == 4 and msg['content']['type'] == 12:  # 红包
             self.send_msg_by_uid('哇~红包！谢谢土豪~', msg['user']['id'])
         elif msg['content']['type'] == 11:  # 登录？
+            pass
+        elif msg['content']['type'] == 99:  # 未知？
             pass
         else:
             self.outputlog('收到未知消息，类型：' + str(msg['content']['type']))
