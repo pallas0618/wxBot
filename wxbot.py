@@ -146,7 +146,10 @@ class WXBot:
         :return: 转换后的Unicode字符串
         """
         if isinstance(string, str):
-            return string
+            if(sys.version_info[0]==3):
+                return string
+            else:
+                return string.decode(encoding)
         elif isinstance(string, unicode):
             return string
         else:
@@ -587,14 +590,20 @@ class WXBot:
         elif mtype == 3:
             msg_content['type'] = 3
             msg_content['data'] = self.get_msg_img_url(msg_id)
-            msg_content['img'] = self.session.get(msg_content['data']).content
+            if(sys.version_info[0]==3):
+                msg_content['img'] = self.session.get(msg_content['data']).content
+            else:
+                msg_content['img'] = self.session.get(msg_content['data']).content.encode('hex')
             if self.DEBUG:
                 image = self.get_msg_img(msg_id)
                 self.outputlog('    %s[Image] %s' % (msg_prefix, image))
         elif mtype == 34:
             msg_content['type'] = 4
             msg_content['data'] = self.get_voice_url(msg_id)
-            msg_content['voice'] = self.session.get(msg_content['data']).content
+            if(sys.version_info[0]==3):
+                msg_content['voice'] = self.session.get(msg_content['data']).content
+            else:
+                msg_content['voice'] = self.session.get(msg_content['data']).content.encode('hex')          
             if self.DEBUG:
                 voice = self.get_voice(msg_id)
                 self.outputlog('    %s[Voice] %s' % (msg_prefix, voice))
@@ -1220,7 +1229,7 @@ class WXBot:
         while True:
             text = input('')
             if text == 'quit':
-                #listenProcess.terminate()	
+                #listenProcess.terminate()  
                 self.outputlog('退出程序')
                 #stopflag = '1'
                 os._exit(0)
@@ -1400,7 +1409,10 @@ class WXBot:
             'synckey': self.sync_key_str,
             '_': int(time.time()),
         }
-        url = 'https://' + self.sync_host + '/cgi-bin/mmwebwx-bin/synccheck?' + urllib.parse.urlencode(params)
+        if(sys.version_info[0]==3):
+            url = 'https://' + self.sync_host + '/cgi-bin/mmwebwx-bin/synccheck?' + urllib.parse.urlencode(params)
+        else:
+            url = 'https://' + self.sync_host + '/cgi-bin/mmwebwx-bin/synccheck?' + urllib.urlencode(params)
         try:
             r = self.session.get(url, timeout=60)
             r.encoding = 'utf-8'
@@ -1534,4 +1546,11 @@ class WXBot:
             return None
 
     def outputlog(self,str):
+        """
+        if(sys.version_info[0]==3):
+            print(str)
+        else:
+            print str
+        from __future__ import print_function
+        """
         return None
