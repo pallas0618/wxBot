@@ -1271,7 +1271,7 @@ class WXBot:
             # img = Image.open(qr_file_path)
             # img.show()
         elif self.conf['qr'] == 'tty':
-            self.outputlog(qr.terminal(quiet_zone=1))
+            print(qr.terminal(quiet_zone=1))
 
     def do_request(self, url):
         r = self.session.get(url)

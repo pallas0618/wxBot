@@ -1,17 +1,19 @@
 #!/usr/bin/env python
 # coding: utf-8
 from __future__ import print_function
+import sys
 try:#python2
     import ConfigParser
-    from fakeframe import Frame, Image, ImageTk
+    from Tkinter import *
+    reload(sys)
+    sys.setdefaultencoding('utf-8')
 except ImportError:#python3
     import configparser
     from tkinter import *
-    from PIL import Image
-    from PIL import ImageTk
-import sys
 import json
 import threading
+from PIL import Image
+from PIL import ImageTk
 from wxbot import *
 
 #二维码
@@ -39,7 +41,10 @@ class Application(Frame):
         
     def setbot(self,bot):
         self.bot = bot
-        self.master.iconbitmap('icon.ico')
+        try:
+            self.master.iconbitmap('icon.ico')
+        except Exception as e:
+            pass
         menubar = Menu(self.master)
         menu1 = Menu(menubar, tearoff=0)
         menu1.add_command(label='发送', command=self.bot.guisend)
@@ -91,7 +96,7 @@ class Application(Frame):
         self.bot.outputlog('未经授权，严禁商用，个人研究请随意使用')
         self.bot.outputlog('======================================')
         for i in range(1,6):
-            self.loglist.itemconfig(self.loglist.size()-i,fg="#00ffff")  
+            self.loglist.itemconfig(self.loglist.size()-i,fg="#00ffff")
 
 class TulingWXBot(WXBot):
     def __init__(self):
@@ -132,8 +137,7 @@ class TulingWXBot(WXBot):
                 result = respond['text'].replace('<br>', '  ')
                 result = result.replace(u'\xa0', u' ')
 
-            self.outputlog('    [AI回复]:')
-            self.outputlog(result)
+            self.outputlog('    [AI回复]:' + result)
             return result
         else:
             return u"知道啦"
@@ -218,70 +222,58 @@ class TulingWXBot(WXBot):
             self.outputlog('收到未知消息，类型：' + str(msg['content']['type']))
     
     def gen_qr_code(self, qr_file_path):
-        if(sys.version_info[0]==3):
-            string = 'https://login.weixin.qq.com/l/' + self.uuid
-            qr = pyqrcode.create(string)
-            qr.png(qr_file_path, scale=8)
-            self.loadqrcode(qr_file_path)
-        else:
-            #self.conf = {'qr': 'tty'}
-            WXBot.gen_qr_code(self, qr_file_path)
-        
+        string = 'https://login.weixin.qq.com/l/' + self.uuid
+        qr = pyqrcode.create(string)
+        qr.png(qr_file_path, scale=8)
+        self.loadqrcode(qr_file_path)
+           
     def loadqrcode(self,url):
-        if(sys.version_info[0]==3):
-            load = Image.open(url)
-            w, h = load.size
-            load_resized = self.resize(w, h, qrw, qrh, load)
-            render= ImageTk.PhotoImage(load_resized)    
-            self.img = Label(self.app.master,image=render, width=qrw, height=qrh)  
-            self.img.image = render  
-            self.img.place(x=0,y=0) 
-        
-    def resize(self, w, h, w_box, h_box, pil_image):  
-        if(sys.version_info[0]==3):
-            f1 = 1.0*w_box/w # 1.0 forces float division in Python2  
-            f2 = 1.0*h_box/h  
-            factor = min([f1, f2])  
-            #self.outputlog(f1, f2, factor) # test  
-            # use best down-sizing filter  
-            width = int(w*factor)  
-            height = int(h*factor)  
-            return pil_image.resize((width, height), Image.ANTIALIAS) 
+        load = Image.open(url)
+        w, h = load.size
+        load_resized = self.resize(w, h, qrw, qrh, load)
+        render= ImageTk.PhotoImage(load_resized)    
+        self.img = Label(self.app.master,image=render, width=qrw, height=qrh)  
+        self.img.image = render  
+        self.img.place(x=0,y=0) 
     
+    def resize(self, w, h, w_box, h_box, pil_image):
+        f1 = 1.0*w_box/w # 1.0 forces float division in Python2  
+        f2 = 1.0*h_box/h  
+        factor = min([f1, f2])  
+        #self.outputlog(f1, f2, factor) # test  
+        # use best down-sizing filter  
+        width = int(w*factor)  
+        height = int(h*factor)  
+        return pil_image.resize((width, height), Image.ANTIALIAS) 
+
     def guiwindow(self):
-        if(sys.version_info[0]==3):
-            self.app = Application()
-            self.app.setbot(self)
-            self.app.master.title('微信自动回复机器人 By Xdx3000')
-            self.app.master.geometry(str(qrw)+'x'+str(qrh+lsh+20))#+500+200')        
-            self.app.mainloop()
-            os._exit(0)
+        self.app = Application()
+        self.app.setbot(self)
+        self.app.master.title('微信自动回复机器人 By Xdx3000')
+        self.app.master.geometry(str(qrw)+'x'+str(qrh+lsh+20))#+500+200')        
+        self.app.mainloop()
+        os._exit(0)
 
     def guisend(self):
-        if(sys.version_info[0]==3):
-            to = self.app.tostr.get()
-            msg= self.app.msgstr.get()
-            self.outputlog('向 ['+to+'] 发送消息：'+msg)
-            self.send_msg(to,msg)
-            self.app.msgstr.set('')
+        to = self.app.tostr.get()
+        msg= self.app.msgstr.get()
+        self.outputlog('向 ['+to+'] 发送消息：'+msg)
+        self.send_msg(to,msg)
+        self.app.msgstr.set('')
         
     def run(self):
-        if(sys.version_info[0]==3):
-            windowProcess = threading.Thread(target=self.guiwindow)
-            windowProcess.start()
+        windowProcess = threading.Thread(target=self.guiwindow)
+        windowProcess.start()
         WXBot.run(self)
 
     def outputlog(self,str):
-        if(sys.version_info[0]==3):
-            self.app.loglist.insert(END,str)
-            self.app.loglist.see(END)
-        else:
-            print(str)
+        self.app.loglist.insert(END,str)
+        self.app.loglist.see(END)
+        #print(str)
 
     def proc_msg(self):
-        if(sys.version_info[0]==3):
-            self.img.place_forget()
-            self.app.loglist.place(y=0, height=qrh)#+lsh
+        self.img.place_forget()
+        self.app.loglist.place(y=0, height=qrh)#+lsh
         WXBot.proc_msg(self)
 
 def main():
